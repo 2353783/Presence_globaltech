@@ -1,67 +1,162 @@
-const API_URL = '/api';
+import { supabase } from './supabase';
+
 const CURRENT_USER_KEY = 'gt_current_user';
 
 export const initStorage = async () => {
-  // DB is initialized by json-server using db.json
+  // Supabase doesn't need explicit initialization here as it's done in supabase.js
 };
+
+// --- USERS ---
 
 export const getUsers = async () => {
   try {
-    const res = await fetch(`${API_URL}/users`);
-    return await res.json();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*');
+    
+    if (error) throw error;
+    
+    // Map snake_case from DB to camelCase for App
+    return (data || []).map(u => ({
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      pin: u.pin,
+      deviceId: u.device_id
+    }));
   } catch (e) {
-    console.error("Erreur serveur:", e);
+    console.error("Erreur Supabase (getUsers):", e);
     return [];
   }
 };
 
 export const addUser = async (user) => {
-  await fetch(`${API_URL}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user)
-  });
+  try {
+    const { error } = await supabase
+      .from('users')
+      .insert([{
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        pin: user.pin,
+        device_id: user.deviceId
+      }]);
+    
+    if (error) throw error;
+  } catch (e) {
+    console.error("Erreur Supabase (addUser):", e);
+  }
+};
+
+export const updateUser = async (user) => {
+  if (!user.id) return;
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({
+        name: user.name,
+        role: user.role,
+        pin: user.pin,
+        device_id: user.deviceId
+      })
+      .eq('id', user.id);
+    
+    if (error) throw error;
+  } catch (e) {
+    console.error("Erreur Supabase (updateUser):", e);
+  }
 };
 
 export const deleteUser = async (userId) => {
-  await fetch(`${API_URL}/users/${userId}`, { method: 'DELETE' });
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+    
+    if (error) throw error;
+  } catch (e) {
+    console.error("Erreur Supabase (deleteUser):", e);
+  }
 };
+
+// --- PRESENCE ---
 
 export const getPresence = async () => {
   try {
-    const res = await fetch(`${API_URL}/presence`);
-    return await res.json();
+    const { data, error } = await supabase
+      .from('presence')
+      .select('*');
+    
+    if (error) throw error;
+    
+    // Map snake_case from DB to camelCase for App
+    return (data || []).map(p => ({
+      id: p.id,
+      userId: p.user_id,
+      userName: p.user_name,
+      date: p.date,
+      checkIn: p.check_in,
+      checkInCoords: p.check_in_coords,
+      checkOut: p.check_out,
+      checkOutCoords: p.check_out_coords,
+      checkOutLocationName: p.check_out_location_name,
+      deviceInfo: p.device_info
+    }));
   } catch (e) {
-    console.error("Erreur serveur:", e);
+    console.error("Erreur Supabase (getPresence):", e);
     return [];
   }
 };
 
 export const addPresenceRecord = async (record) => {
-  await fetch(`${API_URL}/presence`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(record)
-  });
+  try {
+    const { error } = await supabase
+      .from('presence')
+      .insert([{
+        id: record.id,
+        user_id: record.userId,
+        user_name: record.userName,
+        date: record.date,
+        check_in: record.checkIn,
+        check_in_coords: record.checkInCoords,
+        check_out: record.checkOut,
+        check_out_coords: record.checkOutCoords,
+        check_out_location_name: record.checkOutLocationName,
+        device_info: record.deviceInfo
+      }]);
+    
+    if (error) throw error;
+  } catch (e) {
+    console.error("Erreur Supabase (addPresenceRecord):", e);
+  }
 };
 
 export const updatePresenceRecord = async (record) => {
   if (!record.id) return;
-  await fetch(`${API_URL}/presence/${record.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(record)
-  });
+  try {
+    const { error } = await supabase
+      .from('presence')
+      .update({
+        user_id: record.userId,
+        user_name: record.userName,
+        date: record.date,
+        check_in: record.checkIn,
+        check_in_coords: record.checkInCoords,
+        check_out: record.checkOut,
+        check_out_coords: record.checkOutCoords,
+        check_out_location_name: record.checkOutLocationName,
+        device_info: record.deviceInfo
+      })
+      .eq('id', record.id);
+    
+    if (error) throw error;
+  } catch (e) {
+    console.error("Erreur Supabase (updatePresenceRecord):", e);
+  }
 };
 
-export const updateUser = async (user) => {
-  if (!user.id) return;
-  await fetch(`${API_URL}/users/${user.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user)
-  });
-};
+// --- LOCAL STORAGE HELPERS ---
 
 export const getDeviceId = () => {
   let id = localStorage.getItem('gt_device_id');
