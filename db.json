@@ -1,0 +1,130 @@
+{
+  "users": [
+    {
+      "id": "admin",
+      "name": "Administrateur",
+      "role": "admin",
+      "pin": "1234"
+    },
+    {
+      "id": "isa",
+      "name": "isa",
+      "role": "admin",
+      "pin": "2353"
+    },
+    {
+      "id": "1775812308285",
+      "name": "Nathan Basimba",
+      "pin": "4321",
+      "role": "agent"
+    },
+    {
+      "id": "1775813596920",
+      "name": "Paul Ngoyi",
+      "pin": "0000",
+      "role": "agent"
+    },
+    {
+      "id": "1775823352234",
+      "name": "Elsie Makodila",
+      "pin": "0001",
+      "role": "agent",
+      "deviceId": "dev_1775823588038_n4rgs9x"
+    },
+    {
+      "id": "1775824090281",
+      "name": "Joel Lukau",
+      "pin": "0011",
+      "role": "agent",
+      "deviceId": "dev_1775824113613_zbe4n28"
+    }
+  ],
+  "presence": [
+    {
+      "id": "1775812629853",
+      "userId": "1775812308285",
+      "userName": "Nathan Basimba",
+      "date": "10/04/2026",
+      "checkIn": "2026-04-10T09:17:09.853Z",
+      "checkInCoords": {
+        "lat": -4.3537920752279256,
+        "lon": 15.331281615330383
+      },
+      "checkOut": "2026-04-10T09:18:56.637Z",
+      "checkOutCoords": {
+        "lat": -4.353794083493639,
+        "lon": 15.331272319237732
+      },
+      "checkOutLocationName": "BUREAU GLOBAL TECH"
+    },
+    {
+      "id": "1775812765815",
+      "userId": "admin",
+      "userName": "Administrateur",
+      "date": "10/04/2026",
+      "checkIn": "2026-04-10T09:19:25.815Z",
+      "checkInCoords": {
+        "lat": -4.353798930965149,
+        "lon": 15.331262722160991
+      },
+      "checkOut": "2026-04-10T09:26:57.039Z",
+      "checkOutCoords": {
+        "lat": -4.33,
+        "lon": 15.3104
+      },
+      "checkOutLocationName": "Avenue de la Région, Djalo (à 3518m du bureau)"
+    },
+    {
+      "id": "1775813514241",
+      "userId": "isa",
+      "userName": "isa",
+      "date": "10/04/2026",
+      "checkIn": "2026-04-10T09:31:54.241Z",
+      "checkInCoords": {
+        "lat": -4.35373497505785,
+        "lon": 15.331177589737258
+      },
+      "checkOut": "2026-04-10T12:00:00.677Z",
+      "checkOutCoords": {
+        "lat": -4.3538022217309305,
+        "lon": 15.331269481499941
+      },
+      "checkOutLocationName": "BUREAU GLOBAL TECH"
+    },
+    {
+      "id": "1775823382718",
+      "userId": "1775823352234",
+      "userName": "Elsie Makodila",
+      "date": "10/04/2026",
+      "checkIn": "2026-04-10T12:16:22.718Z",
+      "checkInCoords": {
+        "lat": -4.353803983026218,
+        "lon": 15.331289056129132
+      },
+      "checkOut": "2026-04-10T12:19:57.811Z",
+      "checkOutCoords": {
+        "lat": -4.353749154777345,
+        "lon": 15.331154613056636
+      },
+      "checkOutLocationName": "BUREAU GLOBAL TECH"
+    },
+    {
+      "id": "1775824133610",
+      "userId": "1775824090281",
+      "userName": "Joel Lukau",
+      "deviceInfo": "Windows - Chrome",
+      "date": "10/04/2026",
+      "checkIn": "2026-04-10T12:28:53.625Z",
+      "checkInCoords": {
+        "lat": -4.353765963414942,
+        "lon": 15.331203445157975
+      },
+      "checkOut": "2026-04-10T12:30:47.736Z",
+      "checkOutCoords": {
+        "lat": -4.353785277540932,
+        "lon": 15.33121913628407
+      },
+      "checkOutLocationName": "BUREAU GLOBAL TECH"
+    }
+  ]
+}
