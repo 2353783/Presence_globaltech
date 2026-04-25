@@ -202,6 +202,96 @@ input:focus, select:focus {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+/* Hamburger Menu Styles */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 100;
+}
+
+.hamburger-line {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background-color: var(--text-main);
+  margin: 5px 0;
+  transition: all 0.3s ease;
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.header-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 768px) {
+  .hamburger-btn {
+    display: block;
+  }
+
+  .header-right {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    height: 100vh;
+    width: 250px;
+    background-color: var(--bg-card);
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 5rem 2rem 2rem;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    z-index: 90;
+  }
+
+  .header-right.open {
+    right: 0;
+  }
+  
+  .header-right > div {
+    text-align: left !important;
+    width: 100%;
+  }
+
+  .admin-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .logo-img {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .company-name {
+    font-size: 1.25rem;
+  }
+}
+
+
 @media print {
   .no-print, .btn, .header button, .admin-tabs {
     display: none !important;

@@ -15,6 +15,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [adminTab, setAdminTab] = useState('live'); // 'live', 'reports', 'users'
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Admin Form Local State
   const [newUserName, setNewUserName] = useState('');
@@ -33,11 +35,28 @@ function App() {
     // Auto-refresh data every 30 seconds as requested
     const refreshInterval = setInterval(refreshData, 30000);
 
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     return () => {
       clearInterval(clockInterval);
       clearInterval(refreshInterval);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    }
+  };
 
   const refreshData = async () => {
     const p = await getPresence();
@@ -341,6 +360,11 @@ function App() {
             </div>
             {error && <p style={{ color: 'var(--accent-red)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>{error}</p>}
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Se connecter</button>
+            {deferredPrompt && (
+              <button type="button" onClick={handleInstallClick} className="btn" style={{ width: '100%', marginTop: '1rem', background: 'var(--glass-bg)', border: '1px solid var(--accent-blue)', color: 'var(--accent-blue)' }}>
+                📱 Installer l'application
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -357,9 +381,24 @@ function App() {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Presence Tracking System</span>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{user.name}</div>
-          <button onClick={handleLogout} className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Déconnexion</button>
+        
+        <button 
+          className={`hamburger-btn ${isMenuOpen ? 'open' : ''}`} 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+        </button>
+
+        <div className={`header-right ${isMenuOpen ? 'open' : ''}`}>
+          {deferredPrompt && (
+            <button onClick={handleInstallClick} className="btn btn-primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}>📱 Installer App</button>
+          )}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{user.name}</div>
+            <button onClick={handleLogout} className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>Déconnexion</button>
+          </div>
         </div>
       </header>
 
