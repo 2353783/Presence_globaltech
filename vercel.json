@@ -1,0 +1,8 @@
+{
+  "build": {
+    "env": {
+      "VITE_SUPABASE_URL": "https://wrzsdaimsieqmutrhler.supabase.co",
+      "VITE_SUPABASE_ANON_KEY": "sb_publishable_iS8WCb4a0oyROv4T22nJmg_02EMK8-j"
+    }
+  }
+}
