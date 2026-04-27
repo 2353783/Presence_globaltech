@@ -4,5 +4,25 @@
       "VITE_SUPABASE_URL": "https://wrzsdaimsieqmutrhler.supabase.co",
       "VITE_SUPABASE_ANON_KEY": "sb_publishable_iS8WCb4a0oyROv4T22nJmg_02EMK8-j"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
 }
