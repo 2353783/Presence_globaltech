@@ -14,9 +14,9 @@ function App() {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [adminTab, setAdminTab] = useState('live'); // 'live', 'reports', 'users'
+  const [activeTab, setActiveTab] = useState(user?.role === 'admin' ? 'live' : 'tracker');
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Admin Form Local State
   const [newUserName, setNewUserName] = useState('');
@@ -27,6 +27,13 @@ function App() {
   // Report Filter State
   const [reportMonth, setReportMonth] = useState(new Date().getMonth());
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
+
+  const refreshData = async () => {
+    const p = await getPresence();
+    const u = await getUsers();
+    setPresence(p);
+    setAllUsers(u);
+  };
 
   useEffect(() => {
     initStorage();
@@ -58,13 +65,6 @@ function App() {
     }
   };
 
-  const refreshData = async () => {
-    const p = await getPresence();
-    const u = await getUsers();
-    setPresence(p);
-    setAllUsers(u);
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     const users = await getUsers();
@@ -92,6 +92,8 @@ function App() {
 
       setUser(found);
       setCurrentUser(found);
+      setActiveTab(found.role === 'admin' ? 'live' : 'tracker');
+      setIsSidebarOpen(false);
       setPin('');
       setError('');
     } else {
@@ -102,6 +104,7 @@ function App() {
   const handleLogout = () => {
     logout();
     setUser(null);
+    setIsSidebarOpen(false);
   };
 
   const handleCheckIn = () => {
@@ -131,7 +134,7 @@ function App() {
         }
         setLoading(false);
       },
-      (err) => {
+      () => {
         setError("Erreur de géolocalisation (Veuillez autoriser l'accès à la position dans votre navigateur).");
         setLoading(false);
       },
@@ -160,7 +163,7 @@ function App() {
         }
       }
       return `À ${Math.round(dist)}m du bureau`;
-    } catch (e) {
+    } catch {
       return `À ${Math.round(dist)}m du bureau`;
     }
   };
@@ -291,7 +294,7 @@ function App() {
         }
         setLoading(false);
       },
-      (err) => {
+      () => {
         setError("Erreur de géolocalisation lors du départ.");
         setLoading(false);
       }
@@ -372,87 +375,129 @@ function App() {
   }
 
   return (
-    <div className="container animate-fade-in">
-      <header className="header">
-        <div className="logo-container">
-          <img src="/LOGO_GTECH-removebg-preview.png" alt="Global Tech" className="logo-img" style={{ width: '50px', height: '50px' }} />
+    <div className="app-layout animate-fade-in">
+      {/* Sidebar Overlay (Mobile only) */}
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand">
+          <img src="/LOGO_GTECH-removebg-preview.png" alt="Global Tech" className="logo-img" />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span className="company-name">Global Tech</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Presence Tracking System</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Presence Tracking</span>
           </div>
         </div>
-        
-        <button 
-          className={`hamburger-btn ${isMenuOpen ? 'open' : ''}`} 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-        >
-          <span className="hamburger-line"></span>
-          <span className="hamburger-line"></span>
-          <span className="hamburger-line"></span>
-        </button>
 
-        <div className={`header-right ${isMenuOpen ? 'open' : ''}`}>
-          {deferredPrompt && (
-            <button onClick={handleInstallClick} className="btn btn-primary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}>📱 Installer App</button>
+        <nav className="sidebar-nav">
+          {user.role === 'admin' ? (
+            <>
+              <button 
+                className={`sidebar-item ${activeTab === 'live' ? 'active' : ''}`} 
+                onClick={() => { setActiveTab('live'); setIsSidebarOpen(false); }}
+              >
+                📊 Tableau de bord
+              </button>
+              <button 
+                className={`sidebar-item ${activeTab === 'reports' ? 'active' : ''}`} 
+                onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }}
+              >
+                📜 Historique
+              </button>
+              <button 
+                className={`sidebar-item ${activeTab === 'users' ? 'active' : ''}`} 
+                onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}
+              >
+                👥 Utilisateurs
+              </button>
+            </>
+          ) : (
+            <button 
+              className={`sidebar-item ${activeTab === 'tracker' ? 'active' : ''}`} 
+              onClick={() => { setActiveTab('tracker'); setIsSidebarOpen(false); }}
+            >
+              ⏱️ Mon Pointage
+            </button>
           )}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{user.name}</div>
-            <button onClick={handleLogout} className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>Déconnexion</button>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-profile">
+            <div className="user-name">{user.name}</div>
+            <div className="user-role">{user.role === 'admin' ? 'Administrateur' : 'Agent'}</div>
           </div>
+          <button onClick={handleLogout} className="btn-logout">
+            🚪 Déconnexion
+          </button>
+          {deferredPrompt && (
+            <button onClick={handleInstallClick} className="btn-install" style={{ marginTop: '0.5rem' }}>
+              📱 Installer App
+            </button>
+          )}
         </div>
-      </header>
+      </aside>
 
-      <main>
-        <div className="grid" style={{ display: 'grid', gridTemplateColumns: user.role === 'admin' ? '350px 1fr' : '1fr', gap: '2rem' }}>
-          {/* User Tracker Card */}
-          <section className="glass-card" style={{ alignSelf: 'start' }}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ma Présence Aujourd'hui</h2>
-            <div style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '2rem', color: 'var(--accent-blue)' }}>
-              {calculateTimeSpent(currentRecord)}
-            </div>
+      {/* Main Content Container */}
+      <div className="main-container">
+        {/* Top bar (Mobile only) */}
+        <header className="mobile-header">
+          <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+          </button>
+          <div className="mobile-brand">
+            <img src="/LOGO_GTECH-removebg-preview.png" alt="Global Tech" className="logo-img" style={{ width: '32px', height: '32px' }} />
+            <span className="company-name" style={{ fontSize: '1.1rem' }}>Global Tech</span>
+          </div>
+          <div style={{ width: '40px' }}></div> {/* spacer to center brand */}
+        </header>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {!currentRecord ? (
-                <button onClick={handleCheckIn} className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Localisation...' : 'Pointer Arrivée'}
-                </button>
-              ) : !currentRecord.checkOut ? (
-                <button onClick={handleCheckOut} className="btn btn-danger" disabled={loading}>
-                  {loading ? 'Localisation...' : 'Fin de Service'}
-                </button>
-              ) : (
-                <div className="status-badge status-offline" style={{ textAlign: 'center', padding: '1rem' }}>
-                  Travail terminé pour aujourd'hui
-                </div>
-              )}
-            </div>
+        {/* Page Content */}
+        <main className="main-content">
+          {/* Admin Dashboard view */}
+          {user.role === 'admin' && activeTab === 'live' && (
+            <div className="dashboard-view animate-fade-in">
+              <div className="grid-dashboard">
+                {/* User Tracker Card */}
+                <section className="glass-card">
+                  <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ma Présence Aujourd'hui</h2>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '2rem', color: 'var(--accent-blue)' }}>
+                    {calculateTimeSpent(currentRecord)}
+                  </div>
 
-            {error && <p style={{ color: 'var(--accent-red)', marginTop: '1rem', fontSize: '0.875rem' }}>{error}</p>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {!currentRecord ? (
+                      <button onClick={handleCheckIn} className="btn btn-primary" disabled={loading}>
+                        {loading ? 'Localisation...' : 'Pointer Arrivée'}
+                      </button>
+                    ) : !currentRecord.checkOut ? (
+                      <button onClick={handleCheckOut} className="btn btn-danger" disabled={loading}>
+                        {loading ? 'Localisation...' : 'Fin de Service'}
+                      </button>
+                    ) : (
+                      <div className="status-badge status-offline" style={{ textAlign: 'center', padding: '1rem' }}>
+                        Travail terminé pour aujourd'hui
+                      </div>
+                    )}
+                  </div>
 
-            <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
-                <span>Arrivée:</span>
-                <span>{currentRecord ? new Date(currentRecord.checkIn).toLocaleTimeString() : '--:--'}</span>
-              </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-                <span>Départ:</span>
-                <span>{currentRecord?.checkOut ? new Date(currentRecord.checkOut).toLocaleTimeString() : '--:--'}</span>
-              </div>
-            </div>
-          </section>
+                  {error && <p style={{ color: 'var(--accent-red)', marginTop: '1rem', fontSize: '0.875rem' }}>{error}</p>}
 
-          {/* Admin Panel */}
-          {user.role === 'admin' && (
-            <section className="glass-card">
-              <div className="admin-tabs no-print">
-                <button className={`tab-btn ${adminTab === 'live' ? 'active' : ''}`} onClick={() => setAdminTab('live')}>Tableau Live</button>
-                <button className={`tab-btn ${adminTab === 'reports' ? 'active' : ''}`} onClick={() => setAdminTab('reports')}>Historique</button>
-                <button className={`tab-btn ${adminTab === 'users' ? 'active' : ''}`} onClick={() => setAdminTab('users')}>Utilisateurs</button>
-              </div>
+                  <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Arrivée:</span>
+                      <span>{currentRecord ? new Date(currentRecord.checkIn).toLocaleTimeString() : '--:--'}</span>
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+                      <span>Départ:</span>
+                      <span>{currentRecord?.checkOut ? new Date(currentRecord.checkOut).toLocaleTimeString() : '--:--'}</span>
+                    </div>
+                  </div>
+                </section>
 
-              {/* Tab: Live Presence */}
-              {adminTab === 'live' && (
-                <div>
+                {/* Live Presence Table */}
+                <section className="glass-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h2 style={{ fontSize: '1.25rem' }}>Présence en Temps Réel</h2>
                     <span className="status-badge status-online">Auto-refresh: 30s</span>
@@ -482,150 +527,189 @@ function App() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              )}
+                </section>
+              </div>
+            </div>
+          )}
 
-              {/* Tab: Reports */}
-              {adminTab === 'reports' && (
+          {/* Admin Reports view */}
+          {user.role === 'admin' && activeTab === 'reports' && (
+            <section className="glass-card animate-fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div>
-                      <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Rapports de Présence</h2>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <select 
-                          value={reportMonth} 
-                          onChange={(e) => setReportMonth(parseInt(e.target.value))}
-                          style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
-                        >
-                          {["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"].map((m, i) => (
-                            <option key={i} value={i}>{m}</option>
-                          ))}
-                        </select>
-                        <select 
-                          value={reportYear} 
-                          onChange={(e) => setReportYear(parseInt(e.target.value))}
-                          style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
-                        >
-                          {[2024, 2025, 2026].map(y => (
-                            <option key={y} value={y}>{y}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={handleExportExcel} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)', background: 'var(--accent-blue)', color: 'white' }}>Exporter Excel</button>
-                      <button onClick={() => window.print()} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>Imprimer</button>
-                    </div>
-                  </div>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Agent</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Date</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Statut</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Arrivée</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Départ</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Temps Travail</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getAugmentedPresence().map((rec, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{rec.userName}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{rec.date}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>
-                              <span style={{ 
-                                padding: '2px 8px', 
-                                borderRadius: '4px', 
-                                fontSize: '0.7rem',
-                                background: rec.status === 'Absent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                                color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
-                                fontWeight: 'bold'
-                              }}>
-                                {rec.status.toUpperCase()}
-                              </span>
-                            </td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
-                            <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{rec.status === 'Absent' ? '---' : calculateTimeSpent(rec)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Rapports de Présence</h2>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <select 
+                      value={reportMonth} 
+                      onChange={(e) => setReportMonth(parseInt(e.target.value))}
+                      style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
+                    >
+                      {["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"].map((m, i) => (
+                        <option key={i} value={i}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={reportYear} 
+                      onChange={(e) => setReportYear(parseInt(e.target.value))}
+                      style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
+                    >
+                      {[2024, 2025, 2026].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              )}
-
-              {/* Tab: User Management */}
-              {adminTab === 'users' && (
-                <div>
-                  <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Gestion des Utilisateurs</h2>
-                  <form onSubmit={handleCreateUser} className="admin-form">
-                    <div>
-                      <label>Nom complet</label>
-                      <input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Ex: Jean Paul" required />
-                    </div>
-                    <div>
-                      <label>Code PIN (4 chiffres)</label>
-                      <input value={newUserPin} onChange={e => setNewUserPin(e.target.value)} placeholder="0000" maxLength="4" required />
-                    </div>
-                    <div>
-                      <label>Rôle</label>
-                      <select
-                        value={newUserRole}
-                        onChange={e => setNewUserRole(e.target.value)}
-                        style={{ width: '100%', padding: '0.75rem', background: '#fff', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '0.5rem' }}
-                      >
-                        <option value="agent">Agent</option>
-                        <option value="admin">Administrateur</option>
-                      </select>
-                    </div>
-                    <button type="submit" className="btn btn-primary" style={{ gridColumn: 'span 3', marginTop: '1rem' }}>Ajouter l'utilisateur</button>
-                    {creationError && <p style={{ color: 'var(--accent-red)', gridColumn: 'span 3', marginTop: '1rem', fontSize: '0.875rem' }}>{creationError}</p>}
-                  </form>
-
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Nom</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Rôle</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>PIN</th>
-                          <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allUsers.map((u) => (
-                          <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{u.name}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>
-                              <span className={`status-badge ${u.role === 'admin' ? 'status-online' : 'status-offline'}`}>
-                                {u.role === 'admin' ? 'Admin' : 'Agent'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>****</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>
-                              <button
-                                onClick={() => handleDeleteUser(u.id)}
-                                className="btn"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171' }}
-                                disabled={u.id === 'admin'} // Protect primary admin
-                              >
-                                Supprimer
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={handleExportExcel} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)', background: 'var(--accent-blue)', color: 'white' }}>Exporter Excel</button>
+                  <button onClick={() => window.print()} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>Imprimer</button>
                 </div>
-              )}
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Agent</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Date</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Statut</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Arrivée</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Départ</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Temps Travail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getAugmentedPresence().map((rec, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.userName}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.date}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          <span style={{ 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '0.7rem',
+                            background: rec.status === 'Absent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                            color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
+                            fontWeight: 'bold'
+                          }}>
+                            {rec.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
+                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{rec.status === 'Absent' ? '---' : calculateTimeSpent(rec)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
-        </div>
-      </main>
+
+          {/* Admin Users view */}
+          {user.role === 'admin' && activeTab === 'users' && (
+            <section className="glass-card animate-fade-in">
+              <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Gestion des Utilisateurs</h2>
+              <form onSubmit={handleCreateUser} className="admin-form">
+                <div>
+                  <label>Nom complet</label>
+                  <input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Ex: Jean Paul" required />
+                </div>
+                <div>
+                  <label>Code PIN (4 chiffres)</label>
+                  <input value={newUserPin} onChange={e => setNewUserPin(e.target.value)} placeholder="0000" maxLength="4" required />
+                </div>
+                <div>
+                  <label>Rôle</label>
+                  <select
+                    value={newUserRole}
+                    onChange={e => setNewUserRole(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', background: '#fff', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '0.5rem' }}
+                  >
+                    <option value="agent">Agent</option>
+                    <option value="admin">Administrateur</option>
+                  </select>
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ gridColumn: 'span 3', marginTop: '1rem' }}>Ajouter l'utilisateur</button>
+                {creationError && <p style={{ color: 'var(--accent-red)', gridColumn: 'span 3', marginTop: '1rem', fontSize: '0.875rem' }}>{creationError}</p>}
+              </form>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Nom</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Rôle</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>PIN</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allUsers.map((u) => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>{u.name}</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          <span className={`status-badge ${u.role === 'admin' ? 'status-online' : 'status-offline'}`}>
+                            {u.role === 'admin' ? 'Admin' : 'Agent'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>****</td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="btn"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171' }}
+                            disabled={u.id === 'admin'} // Protect primary admin
+                          >
+                            Supprimer
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* Non-admin / Agent view */}
+          {user.role !== 'admin' && activeTab === 'tracker' && (
+            <section className="glass-card animate-fade-in" style={{ maxWidth: '500px', margin: '2rem auto' }}>
+              <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Ma Présence Aujourd'hui</h2>
+              <div style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '2rem', color: 'var(--accent-blue)' }}>
+                {calculateTimeSpent(currentRecord)}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {!currentRecord ? (
+                  <button onClick={handleCheckIn} className="btn btn-primary" disabled={loading}>
+                    {loading ? 'Localisation...' : 'Pointer Arrivée'}
+                  </button>
+                ) : !currentRecord.checkOut ? (
+                  <button onClick={handleCheckOut} className="btn btn-danger" disabled={loading}>
+                    {loading ? 'Localisation...' : 'Fin de Service'}
+                  </button>
+                ) : (
+                  <div className="status-badge status-offline" style={{ textAlign: 'center', padding: '1rem' }}>
+                    Travail terminé pour aujourd'hui
+                  </div>
+                )}
+              </div>
+
+              {error && <p style={{ color: 'var(--accent-red)', marginTop: '1rem', fontSize: '0.875rem' }}>{error}</p>}
+
+              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Arrivée:</span>
+                  <span>{currentRecord ? new Date(currentRecord.checkIn).toLocaleTimeString() : '--:--'}</span>
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+                  <span>Départ:</span>
+                  <span>{currentRecord?.checkOut ? new Date(currentRecord.checkOut).toLocaleTimeString() : '--:--'}</span>
+                </div>
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
