@@ -244,6 +244,7 @@ function App() {
           "Départ": "---",
           "Lieu de Départ": "---",
           "Temps de Travail": "0h 0m",
+          "Sortie Zone": "---",
           "Appareil": "---"
         };
       }
@@ -255,6 +256,7 @@ function App() {
         locationText = dist <= ALLOWED_RADIUS_METERS ? "BUREAU GLOBAL TECH" : `À ${dist}m du bureau`;
       }
       
+      const exitTime = getExitZoneTime(rec.deviceInfo);
       return {
         "Nom": rec.userName,
         "Date": rec.date,
@@ -263,6 +265,7 @@ function App() {
         "Départ": rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---',
         "Lieu de Départ": locationText,
         "Temps de Travail": calculateTimeSpent(rec),
+        "Sortie Zone": exitTime || "Non détectée",
         "Appareil": rec.deviceInfo || "Inconnu"
       };
     });
@@ -330,6 +333,66 @@ function App() {
       await refreshData();
     }
   };
+
+  const handleResetDevice = async (userId) => {
+    if (confirm("Réinitialiser l'appareil de cet utilisateur ? Cela lui permettra de se connecter depuis un nouvel appareil.")) {
+      const u = allUsers.find(user => user.id === userId);
+      if (u) {
+        const updatedUser = { ...u, deviceId: null };
+        await updateUser(updatedUser);
+        await refreshData();
+      }
+    }
+  };
+
+  const getExitZoneTime = (deviceInfo) => {
+    if (!deviceInfo) return null;
+    const match = deviceInfo.match(/Sortie zone:\s*([^\s|]+)/);
+    return match ? match[1] : null;
+  };
+
+  useEffect(() => {
+    if (!user || !currentRecord || currentRecord.checkOut) {
+      return;
+    }
+
+    let watchId = null;
+
+    const checkPerimeter = (position) => {
+      const { latitude, longitude } = position.coords;
+      const dist = getDistance(latitude, longitude, OFFICE_COORDS.lat, OFFICE_COORDS.lon);
+
+      if (dist > ALLOWED_RADIUS_METERS) {
+        const hasLeftRecorded = currentRecord.deviceInfo && currentRecord.deviceInfo.includes("Sortie zone");
+
+        if (!hasLeftRecorded) {
+          const exitTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const updatedRecord = {
+            ...currentRecord,
+            deviceInfo: `${currentRecord.deviceInfo || getDeviceInfo()} | Sortie zone: ${exitTime}`
+          };
+          
+          updatePresenceRecord(updatedRecord).then(() => {
+            refreshData();
+          });
+        }
+      }
+    };
+
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        checkPerimeter,
+        (err) => console.warn("Erreur de suivi géolocalisation:", err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    return () => {
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [user, currentRecord?.id, currentRecord?.checkOut, currentRecord?.deviceInfo]);
 
   const currentRecord = presence.find(rec => rec.userId === user?.id && rec.date === new Date().toLocaleDateString());
 
@@ -512,13 +575,25 @@ function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {presence.filter(r => r.date === new Date().toLocaleDateString() && !r.checkOut).map((rec, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{rec.userName}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{new Date(rec.checkIn).toLocaleTimeString()}</td>
-                            <td style={{ padding: '0.75rem 0.5rem' }}>{calculateTimeSpent(rec)}</td>
-                          </tr>
-                        ))}
+                        {presence.filter(r => r.date === new Date().toLocaleDateString() && !r.checkOut).map((rec, i) => {
+                          const exitTime = getExitZoneTime(rec.deviceInfo);
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontWeight: '600' }}>{rec.userName}</span>
+                                  {exitTime && (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-red)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem' }}>
+                                      ⚠️ Hors zone depuis {exitTime}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{new Date(rec.checkIn).toLocaleTimeString()}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{calculateTimeSpent(rec)}</td>
+                            </tr>
+                          );
+                        })}
                         {presence.filter(r => r.date === new Date().toLocaleDateString() && !r.checkOut).length === 0 && (
                           <tr>
                             <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Personne n'est actuellement au bureau</td>
@@ -577,27 +652,39 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {getAugmentedPresence().map((rec, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
-                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.userName}</td>
-                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.date}</td>
-                        <td style={{ padding: '0.75rem 0.5rem' }}>
-                          <span style={{ 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
-                            fontSize: '0.7rem',
-                            background: rec.status === 'Absent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                            color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
-                            fontWeight: 'bold'
-                          }}>
-                            {rec.status.toUpperCase()}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
-                        <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
-                        <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{rec.status === 'Absent' ? '---' : calculateTimeSpent(rec)}</td>
-                      </tr>
-                    ))}
+                    {getAugmentedPresence().map((rec, i) => {
+                      const exitTime = getExitZoneTime(rec.deviceInfo);
+                      return (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
+                          <td style={{ padding: '0.75rem 0.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: '600' }}>{rec.userName}</span>
+                              {exitTime && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--accent-red)', fontWeight: '500', marginTop: '0.15rem' }}>
+                                  Sortie zone: {exitTime}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.date}</td>
+                          <td style={{ padding: '0.75rem 0.5rem' }}>
+                            <span style={{ 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '0.7rem',
+                              background: rec.status === 'Absent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                              color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
+                              fontWeight: 'bold'
+                            }}>
+                              {rec.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
+                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{rec.status === 'Absent' ? '---' : calculateTimeSpent(rec)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -653,14 +740,25 @@ function App() {
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem' }}>****</td>
                         <td style={{ padding: '0.75rem 0.5rem' }}>
-                          <button
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="btn"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171' }}
-                            disabled={u.id === 'admin'} // Protect primary admin
-                          >
-                            Supprimer
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {u.role !== 'admin' && u.deviceId && (
+                              <button
+                                onClick={() => handleResetDevice(u.id)}
+                                className="btn"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--accent-blue)' }}
+                              >
+                                🔄 Réinitialiser
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              className="btn"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171' }}
+                              disabled={u.id === 'admin'} // Protect primary admin
+                            >
+                              Supprimer
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
