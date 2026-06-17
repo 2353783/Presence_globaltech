@@ -210,7 +210,8 @@ function App() {
     const workDays = getWorkDaysInMonth(reportMonth, reportYear);
     
     workDays.forEach(({ dateObj, dateStr }) => {
-      allUsers.forEach(u => {
+      // BUG FIX: Exclure les admins des absences dans les rapports
+      allUsers.filter(u => u.role !== 'admin').forEach(u => {
         const hasRecord = augmented.some(p => p.userId === u.id && p.date === dateStr);
         if (!hasRecord) {
           augmented.push({
@@ -351,6 +352,14 @@ function App() {
     return match ? match[1] : null;
   };
 
+  // BUG FIX: currentRecord doit être déclaré AVANT le useEffect qui l'utilise
+  // Priorité à l'enregistrement du jour sans checkOut, sinon le dernier du jour
+  const currentRecord = (() => {
+    const todayStr = new Date().toLocaleDateString();
+    const todayRecords = presence.filter(rec => rec.userId === user?.id && rec.date === todayStr);
+    return todayRecords.find(rec => !rec.checkOut) || todayRecords[todayRecords.length - 1];
+  })();
+
   useEffect(() => {
     if (!user || !currentRecord || currentRecord.checkOut) {
       return;
@@ -393,8 +402,6 @@ function App() {
       }
     };
   }, [user, currentRecord?.id, currentRecord?.checkOut, currentRecord?.deviceInfo]);
-
-  const currentRecord = presence.find(rec => rec.userId === user?.id && rec.date === new Date().toLocaleDateString());
 
   const calculateTimeSpent = (rec) => {
     if (!rec || !rec.checkIn) return "0h 0m";
