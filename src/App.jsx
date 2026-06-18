@@ -27,6 +27,7 @@ function App() {
   // Report Filter State
   const [reportMonth, setReportMonth] = useState(new Date().getMonth());
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
+  const [reportUserFilter, setReportUserFilter] = useState('all');
 
   const refreshData = async () => {
     const p = await getPresence();
@@ -615,52 +616,110 @@ function App() {
           )}
 
           {/* Admin Reports view */}
-          {user.role === 'admin' && activeTab === 'reports' && (
+          {user.role === 'admin' && activeTab === 'reports' && (() => {
+            const isLate = (checkIn) => {
+              if (!checkIn) return false;
+              const d = new Date(checkIn);
+              return d.getHours() > WORK_START.h || (d.getHours() === WORK_START.h && d.getMinutes() > WORK_START.m);
+            };
+            const filteredRecords = getAugmentedPresence().filter(rec =>
+              reportUserFilter === 'all' || rec.userId === reportUserFilter
+            );
+            const totalPresent = filteredRecords.filter(r => r.status === 'Present').length;
+            const totalAbsent = filteredRecords.filter(r => r.status === 'Absent').length;
+            const total = totalPresent + totalAbsent;
+            const tauxPresence = total > 0 ? Math.round((totalPresent / total) * 100) : 0;
+            return (
             <section className="glass-card animate-fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              {/* Header filtres */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Rapports de Présence</h2>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <select 
-                      value={reportMonth} 
+                  <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>Rapports de Présence</h2>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select
+                      value={reportMonth}
                       onChange={(e) => setReportMonth(parseInt(e.target.value))}
-                      style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
+                      style={{ padding: '0.4rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}
                     >
                       {["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"].map((m, i) => (
                         <option key={i} value={i}>{m}</option>
                       ))}
                     </select>
-                    <select 
-                      value={reportYear} 
+                    <select
+                      value={reportYear}
                       onChange={(e) => setReportYear(parseInt(e.target.value))}
-                      style={{ padding: '0.4rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)' }}
+                      style={{ padding: '0.4rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)', fontSize: '0.85rem' }}
                     >
                       {[2024, 2025, 2026].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
+                    {/* Filtre par nom */}
+                    <select
+                      value={reportUserFilter}
+                      onChange={(e) => setReportUserFilter(e.target.value)}
+                      style={{ padding: '0.4rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--accent-blue)', fontSize: '0.85rem', color: 'var(--accent-blue)', fontWeight: '600' }}
+                    >
+                      <option value="all">👥 Tous les agents</option>
+                      {allUsers.filter(u => u.role !== 'admin').map(u => (
+                        <option key={u.id} value={u.id}>👤 {u.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={handleExportExcel} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)', background: 'var(--accent-blue)', color: 'white' }}>Exporter Excel</button>
-                  <button onClick={() => window.print()} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>Imprimer</button>
+                  <button onClick={handleExportExcel} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)', background: 'var(--accent-blue)', color: 'white' }}>📥 Exporter Excel</button>
+                  <button onClick={() => window.print()} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)' }}>🖨️ Imprimer</button>
                 </div>
               </div>
+
+              {/* Statistiques résumées */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#22c55e' }}>{totalPresent}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.25rem' }}>PRÉSENCES</div>
+                </div>
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#ef4444' }}>{totalAbsent}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.25rem' }}>ABSENCES</div>
+                </div>
+                <div style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--accent-blue)' }}>{tauxPresence}%</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', marginTop: '0.25rem' }}>TAUX PRÉSENCE</div>
+                </div>
+              </div>
+
+              {/* Tableau */}
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Agent</th>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Date</th>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Statut</th>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Arrivée</th>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Départ</th>
-                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)' }}>Temps Travail</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Agent</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Date</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Statut</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Arrivée</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Départ</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Lieu de Départ</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Temps Travail</th>
+                      <th style={{ padding: '1rem 0.5rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Appareil</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {getAugmentedPresence().map((rec, i) => {
+                    {filteredRecords.length === 0 && (
+                      <tr>
+                        <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Aucun enregistrement pour cette période.</td>
+                      </tr>
+                    )}
+                    {filteredRecords.map((rec, i) => {
                       const exitTime = getExitZoneTime(rec.deviceInfo);
+                      const late = rec.status === 'Present' && isLate(rec.checkIn);
+                      let locationText = '---';
+                      if (rec.checkOutLocationName) {
+                        locationText = rec.checkOutLocationName;
+                      } else if (rec.checkOutCoords) {
+                        const dist = Math.round(getDistance(rec.checkOutCoords.lat, rec.checkOutCoords.lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon));
+                        locationText = dist <= ALLOWED_RADIUS_METERS ? 'BUREAU GLOBAL TECH' : `À ${dist}m du bureau`;
+                      }
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
                           <td style={{ padding: '0.75rem 0.5rem' }}>
@@ -668,27 +727,43 @@ function App() {
                               <span style={{ fontWeight: '600' }}>{rec.userName}</span>
                               {exitTime && (
                                 <span style={{ fontSize: '0.7rem', color: 'var(--accent-red)', fontWeight: '500', marginTop: '0.15rem' }}>
-                                  Sortie zone: {exitTime}
+                                  ⚠️ Sortie zone: {exitTime}
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.date}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>{rec.date}</td>
                           <td style={{ padding: '0.75rem 0.5rem' }}>
-                            <span style={{ 
-                              padding: '2px 8px', 
-                              borderRadius: '4px', 
-                              fontSize: '0.7rem',
-                              background: rec.status === 'Absent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                              color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
-                              fontWeight: 'bold'
-                            }}>
-                              {rec.status.toUpperCase()}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                background: rec.status === 'Absent' ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+                                color: rec.status === 'Absent' ? '#ef4444' : '#22c55e',
+                                fontWeight: 'bold',
+                                display: 'inline-block'
+                              }}>
+                                {rec.status === 'Absent' ? 'ABSENT' : 'PRÉSENT'}
+                              </span>
+                              {late && (
+                                <span style={{
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.65rem',
+                                  background: 'rgba(234,179,8,0.15)',
+                                  color: '#b45309',
+                                  fontWeight: 'bold',
+                                  display: 'inline-block'
+                                }}>⏰ RETARD</span>
+                              )}
+                            </div>
                           </td>
-                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
-                          <td style={{ padding: '0.75rem 0.5rem' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>{rec.checkIn ? new Date(rec.checkIn).toLocaleTimeString() : '---'}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>{rec.checkOut ? new Date(rec.checkOut).toLocaleTimeString() : '---'}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{locationText}</td>
                           <td style={{ padding: '0.75rem 0.5rem', fontWeight: 'bold' }}>{rec.status === 'Absent' ? '---' : calculateTimeSpent(rec)}</td>
+                          <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{rec.deviceInfo && rec.deviceInfo !== '---' ? rec.deviceInfo.split(' | ')[0] : '---'}</td>
                         </tr>
                       );
                     })}
@@ -696,7 +771,8 @@ function App() {
                 </table>
               </div>
             </section>
-          )}
+            );
+          })()}
 
           {/* Admin Users view */}
           {user.role === 'admin' && activeTab === 'users' && (
