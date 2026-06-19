@@ -27,3 +27,35 @@ export const OFFICE_COORDS = {
 };
 
 export const ALLOWED_RADIUS_METERS = 100;
+
+export const ALLOWED_LOCATIONS = [
+  {
+    name: "BUREAU GLOBAL TECH",
+    lat: -4.353806739355228,
+    lon: 15.331295448423079,
+    radius: 100
+  },
+  {
+    name: "Financial Managing Support (FMS)",
+    lat: -4.3137123,
+    lon: 15.2919295,
+    radius: 100
+  },
+  {
+    name: "East Castler Infracture",
+    lat: -4.3190625,
+    lon: 15.2810625,
+    radius: 100
+  }
+];
+
+export function getMatchingLocation(lat, lon) {
+  for (const loc of ALLOWED_LOCATIONS) {
+    const dist = getDistance(lat, lon, loc.lat, loc.lon);
+    if (dist <= loc.radius) {
+      return loc;
+    }
+  }
+  return null;
+}
+

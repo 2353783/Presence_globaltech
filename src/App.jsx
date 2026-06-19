@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { getDistance, OFFICE_COORDS, ALLOWED_RADIUS_METERS } from './utils/geo';
+import { getDistance, OFFICE_COORDS, ALLOWED_RADIUS_METERS, ALLOWED_LOCATIONS, getMatchingLocation } from './utils/geo';
 import { initStorage, getUsers, getPresence, addPresenceRecord, updatePresenceRecord, getCurrentUser, setCurrentUser, logout, addUser, deleteUser, getDeviceId, getDeviceInfo, updateUser } from './utils/storage';
 
 const WORK_START = { h: 8, m: 30 };
@@ -113,9 +113,9 @@ function App() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const dist = getDistance(latitude, longitude, OFFICE_COORDS.lat, OFFICE_COORDS.lon);
+        const matchingLoc = getMatchingLocation(latitude, longitude);
 
-        if (dist <= ALLOWED_RADIUS_METERS) {
+        if (matchingLoc) {
           const newRecord = {
             id: Date.now().toString(),
             userId: user.id,
@@ -131,7 +131,7 @@ function App() {
           await refreshData();
           setError('');
         } else {
-          setError("Veuillez vous rendre au bureau de Global Tech pour pointer votre arrivée.");
+          setError("Accès refusé : Veuillez vous rendre dans l'un des bureaux autorisés pour pointer (Global Tech, FMS, East Castler).");
         }
         setLoading(false);
       },
@@ -144,11 +144,12 @@ function App() {
   };
 
   const getLocationName = async (lat, lon) => {
-    const dist = getDistance(lat, lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon);
-    if (dist <= ALLOWED_RADIUS_METERS) {
-      return "BUREAU GLOBAL TECH";
+    const matchingLoc = getMatchingLocation(lat, lon);
+    if (matchingLoc) {
+      return matchingLoc.name;
     }
     
+    const dist = getDistance(lat, lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon);
     try {
       const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
       const data = await resp.json();
@@ -254,8 +255,13 @@ function App() {
       if (rec.checkOutLocationName) {
         locationText = rec.checkOutLocationName;
       } else if (rec.checkOutCoords) {
-        const dist = Math.round(getDistance(rec.checkOutCoords.lat, rec.checkOutCoords.lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon));
-        locationText = dist <= ALLOWED_RADIUS_METERS ? "BUREAU GLOBAL TECH" : `À ${dist}m du bureau`;
+        const matchingLoc = getMatchingLocation(rec.checkOutCoords.lat, rec.checkOutCoords.lon);
+        if (matchingLoc) {
+          locationText = matchingLoc.name;
+        } else {
+          const dist = Math.round(getDistance(rec.checkOutCoords.lat, rec.checkOutCoords.lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon));
+          locationText = `À ${dist}m du bureau`;
+        }
       }
       
       const exitTime = getExitZoneTime(rec.deviceInfo);
@@ -370,9 +376,9 @@ function App() {
 
     const checkPerimeter = (position) => {
       const { latitude, longitude } = position.coords;
-      const dist = getDistance(latitude, longitude, OFFICE_COORDS.lat, OFFICE_COORDS.lon);
+      const matchingLoc = getMatchingLocation(latitude, longitude);
 
-      if (dist > ALLOWED_RADIUS_METERS) {
+      if (!matchingLoc) {
         const hasLeftRecorded = currentRecord.deviceInfo && currentRecord.deviceInfo.includes("Sortie zone");
 
         if (!hasLeftRecorded) {
@@ -717,8 +723,13 @@ function App() {
                       if (rec.checkOutLocationName) {
                         locationText = rec.checkOutLocationName;
                       } else if (rec.checkOutCoords) {
-                        const dist = Math.round(getDistance(rec.checkOutCoords.lat, rec.checkOutCoords.lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon));
-                        locationText = dist <= ALLOWED_RADIUS_METERS ? 'BUREAU GLOBAL TECH' : `À ${dist}m du bureau`;
+                        const matchingLoc = getMatchingLocation(rec.checkOutCoords.lat, rec.checkOutCoords.lon);
+                        if (matchingLoc) {
+                          locationText = matchingLoc.name;
+                        } else {
+                          const dist = Math.round(getDistance(rec.checkOutCoords.lat, rec.checkOutCoords.lon, OFFICE_COORDS.lat, OFFICE_COORDS.lon));
+                          locationText = `À ${dist}m du bureau`;
+                        }
                       }
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)', opacity: rec.status === 'Absent' ? 0.7 : 1 }}>
